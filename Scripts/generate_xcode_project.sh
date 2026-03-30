@@ -25,7 +25,13 @@ for spec in "${SPEC_FILES[@]}"; do
   echo "  - ${spec}"
 done
 
+if [[ "${#SPEC_FILES[@]}" -eq 1 ]]; then
+  xcodegen generate --spec "${ROOT_DIR}/project.yml"
+  exit 0
+fi
+
 {
+  echo "name: RPGPlayerClone"
   echo "include:"
   for spec in "${SPEC_FILES[@]}"; do
     printf "  - path: '%s'\n" "${spec}"
