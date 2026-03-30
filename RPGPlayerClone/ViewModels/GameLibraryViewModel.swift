@@ -140,7 +140,7 @@ final class GameLibraryViewModel: ObservableObject {
             if rescannedGames.isEmpty {
                 statusMessage = "Chua tim thay game nao trong Documents/Games."
             } else {
-                let playableCount = rescannedGames.filter(\.isPlayable).count
+                let playableCount = rescannedGames.filter { $0.isPlayable }.count
                 statusMessage = "Da quet \(rescannedGames.count) muc. Co \(playableCount) game co the khoi chay."
             }
         }

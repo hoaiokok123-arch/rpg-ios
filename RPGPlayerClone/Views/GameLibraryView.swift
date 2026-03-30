@@ -255,7 +255,6 @@ private struct GameCardView: View {
                 } label: {
                     Label("More", systemImage: "ellipsis.circle")
                 }
-                .buttonStyle(.bordered)
             }
         }
         .padding(14)
@@ -299,16 +298,16 @@ private struct GameManagementSheet: View {
         NavigationStack {
             Form {
                 Section("Game") {
-                    LabeledContent("Name", game.name)
-                    LabeledContent("Detected type", game.gameType.displayName)
-                    LabeledContent("Current engine", game.effectiveEngine?.displayName ?? "Unknown")
-                    LabeledContent("Folder", game.path.lastPathComponent)
+                    ManagementRow(title: "Name", value: game.name)
+                    ManagementRow(title: "Detected type", value: game.gameType.displayName)
+                    ManagementRow(title: "Current engine", value: game.effectiveEngine?.displayName ?? "Unknown")
+                    ManagementRow(title: "Folder", value: game.path.lastPathComponent)
                 }
 
                 Section("Engine") {
                     Picker("Runtime", selection: $selectedEngineOverride) {
                         Text(autoEngineLabel).tag(nil as GameEngineRuntime?)
-                        ForEach(runtimeOptions) { runtime in
+                        ForEach(runtimeOptions, id: \.self) { runtime in
                             Text(runtime.displayName).tag(runtime as GameEngineRuntime?)
                         }
                     }
@@ -363,6 +362,22 @@ private struct GameManagementSheet: View {
         }
 
         return "Auto se dung runtime mac dinh cho \(game.gameType.displayName)."
+    }
+}
+
+private struct ManagementRow: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text(value)
+                .font(.body)
+        }
+        .padding(.vertical, 2)
     }
 }
 
