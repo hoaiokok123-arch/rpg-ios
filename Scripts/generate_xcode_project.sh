@@ -35,7 +35,6 @@ fi
   echo "include:"
   for spec in "${SPEC_FILES[@]}"; do
     printf "  - path: '%s'\n" "${spec}"
-    echo "    relativePaths: false"
   done
 } > "${TEMP_SPEC}"
 
