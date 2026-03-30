@@ -3,10 +3,11 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SPEC_FILES=("${ROOT_DIR}/project.yml")
-TEMP_SPEC="$(mktemp "${TMPDIR:-/tmp}/rpgplayerclone-xcodegen.XXXXXX.yml")"
+TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/rpgplayerclone-xcodegen.XXXXXX")"
+TEMP_SPEC="${TEMP_DIR}/project.yml"
 
 cleanup() {
-  rm -f "${TEMP_SPEC}"
+  rm -rf "${TEMP_DIR}"
 }
 
 trap cleanup EXIT
