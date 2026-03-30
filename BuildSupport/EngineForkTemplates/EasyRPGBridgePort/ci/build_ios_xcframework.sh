@@ -28,7 +28,10 @@ xcodebuild archive \
   -archivePath "${DEVICE_ARCHIVE}" \
   -derivedDataPath "${DERIVED_DATA_DIR}" \
   SKIP_INSTALL=NO \
-  BUILD_LIBRARY_FOR_DISTRIBUTION=YES
+  BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
+  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_REQUIRED=NO \
+  CODE_SIGN_IDENTITY=""
 
 echo "Archiving ${PRODUCT_NAME} for iphonesimulator"
 xcodebuild archive \
@@ -39,7 +42,10 @@ xcodebuild archive \
   -archivePath "${SIM_ARCHIVE}" \
   -derivedDataPath "${DERIVED_DATA_DIR}" \
   SKIP_INSTALL=NO \
-  BUILD_LIBRARY_FOR_DISTRIBUTION=YES
+  BUILD_LIBRARY_FOR_DISTRIBUTION=YES \
+  CODE_SIGNING_ALLOWED=NO \
+  CODE_SIGNING_REQUIRED=NO \
+  CODE_SIGN_IDENTITY=""
 
 echo "Creating XCFramework"
 xcodebuild -create-xcframework \
