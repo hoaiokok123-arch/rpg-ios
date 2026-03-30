@@ -2,6 +2,9 @@ import Foundation
 import UIKit
 
 @objc private protocol EasyRPGNativeBridgeFactory {
+    @objc(createViewControllerWithLaunchContext:)
+    optional static func createViewController(withLaunchContext context: NSDictionary) -> UIViewController?
+
     @objc(createViewControllerWithGamePath:)
     static func createViewController(withGamePath path: NSString) -> UIViewController?
 
@@ -13,6 +16,9 @@ import UIKit
 }
 
 @objc private protocol MKXPZNativeBridgeFactory {
+    @objc(createViewControllerWithLaunchContext:)
+    optional static func createViewController(withLaunchContext context: NSDictionary) -> UIViewController?
+
     @objc(createViewControllerWithGamePath:)
     static func createViewController(withGamePath path: NSString) -> UIViewController?
 
@@ -81,8 +87,12 @@ final class RuntimeEasyRPGBridge: EasyRPGEngineBridging {
         return RuntimeEasyRPGBridge(factory: factory)
     }
 
-    func makeViewController(gameDirectory: URL) -> UIViewController {
-        factory.createViewController(withGamePath: gameDirectory.path as NSString) ?? NativeBridgeFailureViewController(
+    func makeViewController(launchContext: NativeEngineLaunchContext) -> UIViewController {
+        if let controller = factory.createViewController?(withLaunchContext: launchContext.payload) {
+            return controller
+        }
+
+        return factory.createViewController(withGamePath: launchContext.game.sandboxFriendlyPath.path as NSString) ?? NativeBridgeFailureViewController(
             message: "EasyRPGBridge da duoc nap nhung khong tao duoc UIViewController."
         )
     }
@@ -120,8 +130,12 @@ final class RuntimeMKXPZBridge: MKXPZEngineBridging {
         return RuntimeMKXPZBridge(factory: factory)
     }
 
-    func makeViewController(gameDirectory: URL) -> UIViewController {
-        factory.createViewController(withGamePath: gameDirectory.path as NSString) ?? NativeBridgeFailureViewController(
+    func makeViewController(launchContext: NativeEngineLaunchContext) -> UIViewController {
+        if let controller = factory.createViewController?(withLaunchContext: launchContext.payload) {
+            return controller
+        }
+
+        return factory.createViewController(withGamePath: launchContext.game.sandboxFriendlyPath.path as NSString) ?? NativeBridgeFailureViewController(
             message: "MKXPZBridge da duoc nap nhung khong tao duoc UIViewController."
         )
     }

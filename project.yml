@@ -46,3 +46,19 @@ targets:
     resources:
       - path: RPGPlayerClone/Assets.xcassets
       - path: RPGPlayerClone/Resources
+
+schemes:
+  RPGPlayerClone:
+    build:
+      targets:
+        RPGPlayerClone: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release

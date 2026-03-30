@@ -1,0 +1,190 @@
+name: Build Native IPA From Engine Ports
+
+on:
+  workflow_dispatch:
+    inputs:
+      easyrpg_repository:
+        description: "owner/repo for EasyRPG iOS port exposing ci/build_ios_xcframework.sh; leave blank to use local template"
+        required: false
+        default: ""
+        type: string
+      easyrpg_ref:
+        description: "Git ref for the EasyRPG port repository"
+        required: true
+        default: "main"
+        type: string
+      mkxpz_repository:
+        description: "owner/repo for mkxp-z iOS port exposing ci/build_ios_xcframework.sh; leave blank to use local template"
+        required: false
+        default: ""
+        type: string
+      mkxpz_ref:
+        description: "Git ref for the mkxp-z port repository"
+        required: true
+        default: "main"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-native-ipa:
+    name: Build Native IPA
+    runs-on: macos-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout app repository
+        uses: actions/checkout@v6
+
+      - name: Checkout EasyRPG port repository
+        if: ${{ inputs.easyrpg_repository != '' }}
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ inputs.easyrpg_repository }}
+          ref: ${{ inputs.easyrpg_ref }}
+          path: external/EasyRPG-Player
+          fetch-depth: 1
+
+      - name: Checkout mkxp-z port repository
+        if: ${{ inputs.mkxpz_repository != '' }}
+        uses: actions/checkout@v6
+        with:
+          repository: ${{ inputs.mkxpz_repository }}
+          ref: ${{ inputs.mkxpz_ref }}
+          path: external/mkxp-z
+          fetch-depth: 1
+
+      - name: Prepare EasyRPG source from local template
+        if: ${{ inputs.easyrpg_repository == '' }}
+        run: |
+          mkdir -p external
+          cp -R BuildSupport/EngineForkTemplates/EasyRPGBridgePort external/EasyRPG-Player
+
+      - name: Prepare mkxp-z source from local template
+        if: ${{ inputs.mkxpz_repository == '' }}
+        run: |
+          mkdir -p external
+          cp -R BuildSupport/EngineForkTemplates/MKXPZBridgePort external/mkxp-z
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+          bundler-cache: true
+
+      - name: Install XcodeGen
+        run: |
+          if ! command -v xcodegen >/dev/null 2>&1; then
+            brew install xcodegen
+          fi
+
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Build EasyRPG native engine artifact
+        run: |
+          chmod +x Scripts/build_engine_from_repo_contract.sh
+          ./Scripts/build_engine_from_repo_contract.sh \
+            "EasyRPG" \
+            "EasyRPGBridge" \
+            "${GITHUB_WORKSPACE}/external/EasyRPG-Player" \
+            "${GITHUB_WORKSPACE}/Vendor"
+
+      - name: Build mkxp-z native engine artifact
+        run: |
+          chmod +x Scripts/build_engine_from_repo_contract.sh
+          ./Scripts/build_engine_from_repo_contract.sh \
+            "mkxp-z" \
+            "MKXPZBridge" \
+            "${GITHUB_WORKSPACE}/external/mkxp-z" \
+            "${GITHUB_WORKSPACE}/Vendor"
+
+      - name: Show vendor frameworks
+        run: find Vendor -maxdepth 3 -print | sort
+
+      - name: Generate Xcode project
+        run: |
+          chmod +x Scripts/generate_xcode_project.sh
+          ./Scripts/generate_xcode_project.sh
+
+      - name: Install CocoaPods dependencies
+        run: bundle exec pod install
+
+      - name: Show available schemes
+        run: xcodebuild -list -workspace RPGPlayerClone.xcworkspace
+
+      - name: Build iPhoneOS app
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          LOG_PATH="build/xcodebuild-native.log"
+
+          xcodebuild \
+            -workspace RPGPlayerClone.xcworkspace \
+            -scheme RPGPlayerClone \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination "generic/platform=iOS" \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            ENABLE_PREVIEWS=NO \
+            ENABLE_DEBUG_DYLIB=NO \
+            ONLY_ACTIVE_ARCH=NO \
+            build | tee "${LOG_PATH}" | bundle exec xcpretty
+
+      - name: Package IPA
+        run: |
+          set -euo pipefail
+
+          APP_PATH="build/DerivedData/Build/Products/Release-iphoneos/RPGPlayerClone.app"
+          ARTIFACT_DIR="build/Artifacts"
+          PAYLOAD_DIR="${ARTIFACT_DIR}/Payload"
+          IPA_PATH="${ARTIFACT_DIR}/RPGPlayerClone-native-unsigned.ipa"
+
+          if [[ ! -d "${APP_PATH}" ]]; then
+            echo "App bundle not found at ${APP_PATH}" >&2
+            find build/DerivedData/Build/Products -maxdepth 3 -print >&2 || true
+            exit 1
+          fi
+
+          rm -rf "${ARTIFACT_DIR}"
+          mkdir -p "${PAYLOAD_DIR}"
+          ditto "${APP_PATH}" "${PAYLOAD_DIR}/RPGPlayerClone.app"
+
+          (
+            cd "${ARTIFACT_DIR}"
+            ditto -c -k --sequesterRsrc --keepParent Payload "RPGPlayerClone-native-unsigned.ipa"
+          )
+
+          ls -lh "${IPA_PATH}"
+
+      - name: Upload native engine artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: RPGPlayerClone-native-engine-xcframeworks
+          path: |
+            Vendor/EasyRPGBridge.xcframework
+            Vendor/MKXPZBridge.xcframework
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: RPGPlayerClone-native-unsigned-ipa
+          path: build/Artifacts/RPGPlayerClone-native-unsigned.ipa
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: RPGPlayerClone-native-build-logs
+          path: |
+            build/xcodebuild-native.log
+            build/DerivedData/Logs
+            Vendor
+          if-no-files-found: warn

@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 
 protocol EasyRPGEngineBridging: AnyObject {
-    func makeViewController(gameDirectory: URL) -> UIViewController
+    func makeViewController(launchContext: NativeEngineLaunchContext) -> UIViewController
     func handleInput(_ event: VirtualGamepadEvent)
     func shutdown()
 }
@@ -91,6 +91,7 @@ final class EasyRPGWrapper: UIViewController {
             1. Build EasyRPG thanh framework/XCFramework.
             2. Expose Objective-C class `EasyRPGBridge`.
             3. Implement selectors:
+               + createViewControllerWithLaunchContext:
                + createViewControllerWithGamePath:
                + sendInputWithButton:pressed:
                + shutdownEngine
@@ -98,8 +99,17 @@ final class EasyRPGWrapper: UIViewController {
             return
         }
 
-        let child = bridge.makeViewController(gameDirectory: game.path)
-        embed(child)
+        do {
+            let launchContext = try NativeEngineLaunchContext(game: game, engineIdentifier: "easyrpg")
+            let child = bridge.makeViewController(launchContext: launchContext)
+            embed(child)
+        } catch {
+            showPlaceholder(text: """
+            Khong tao duoc runtime context cho EasyRPG.
+
+            \(error.localizedDescription)
+            """)
+        }
     }
 
     private func embed(_ child: UIViewController) {

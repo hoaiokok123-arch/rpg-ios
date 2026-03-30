@@ -5,6 +5,9 @@ build/
 *.xcuserstate
 *.xcuserdata/
 .tmp/
+.cache/
+Vendor/*
+!Vendor/.gitkeep
 
 # Track generated Xcode/CocoaPods artifacts for reproducible CI.
 !RPGPlayerClone.xcworkspace/

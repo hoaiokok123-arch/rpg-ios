@@ -1,5 +1,56 @@
 # Hướng dẫn build engine và ghi chú kỹ thuật
 
+## 0. Native port bang GitHub Actions
+
+- Repo nay da co them workflow `.github/workflows/build-native-ipa.yml`.
+- Workflow nay khong tu port duoc repo goc upstream. Ban van can 2 repo port rieng:
+  - 1 repo cho `EasyRPG`
+  - 1 repo cho `mkxp-z`
+- Moi repo port phai expose script:
+
+  ```bash
+  ci/build_ios_xcframework.sh
+  ```
+
+- Script do phai nhan cac bien moi truong sau:
+  - `OUTPUT_DIR`
+  - `PRODUCT_NAME`
+  - `APP_REPO_ROOT`
+  - `BRIDGE_CONTRACT_HEADER`
+
+- Script do phai tao ra dung ten artifact:
+  - `EasyRPGBridge.xcframework`
+  - `MKXPZBridge.xcframework`
+
+- Contract bridge Objective-C duoc dat tai:
+  - `BuildSupport/BridgeContracts/EasyRPGBridge.h`
+  - `BuildSupport/BridgeContracts/MKXPZBridge.h`
+
+- Template repo port san co tai:
+  - `BuildSupport/EngineForkTemplates/EasyRPGBridgePort`
+  - `BuildSupport/EngineForkTemplates/MKXPZBridgePort`
+
+- Script scaffold template:
+
+  ```bash
+  ./Scripts/scaffold_engine_port_template.sh EasyRPGBridgePort ../EasyRPGBridgePort
+  ./Scripts/scaffold_engine_port_template.sh MKXPZBridgePort ../MKXPZBridgePort
+  ```
+
+- App repo se tu dong link framework neu thay:
+  - `Vendor/EasyRPGBridge.xcframework`
+  - `Vendor/MKXPZBridge.xcframework`
+
+- Script local de dung chung contract:
+
+  ```bash
+  EASYRPG_REPO_URL=https://github.com/<owner>/<repo> \
+  EASYRPG_REF=main \
+  MKXPZ_REPO_URL=https://github.com/<owner>/<repo> \
+  MKXPZ_REF=main \
+  ./Scripts/build_engines.sh
+  ```
+
 ## 1. Build EasyRPG Player cho iOS
 
 ### Thực trạng

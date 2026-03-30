@@ -1,0 +1,6 @@
+targets:
+  RPGPlayerClone:
+    dependencies:
+      - framework: ../Vendor/MKXPZBridge.xcframework
+        embed: true
+        codeSign: false

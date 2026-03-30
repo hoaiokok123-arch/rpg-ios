@@ -1,0 +1,6 @@
+targets:
+  RPGPlayerClone:
+    dependencies:
+      - framework: ../Vendor/EasyRPGBridge.xcframework
+        embed: true
+        codeSign: false

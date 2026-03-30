@@ -95,6 +95,19 @@ Bạn không cần máy Mac cá nhân nếu dùng GitHub-hosted macOS runner.
 
 ### Workflow có sẵn
 
+- `.github/workflows/build-ipa.yml`
+  - Build app shell ra `unsigned .ipa`
+  - Không cần signing
+  - Nếu `Vendor/*.xcframework` tồn tại thì workflow sẽ tự link native engine vào app khi generate project
+
+- `.github/workflows/build-native-ipa.yml`
+  - Chạy thủ công bằng `workflow_dispatch`
+  - Checkout 2 repo port native engine riêng
+  - Mỗi repo engine phải có `ci/build_ios_xcframework.sh`
+  - Build `EasyRPGBridge.xcframework` và `MKXPZBridge.xcframework`
+  - Ghép 2 framework đó vào app rồi build `unsigned .ipa` trong cùng workflow
+  - Có thể scaffold 2 repo engine từ template trong `BuildSupport/EngineForkTemplates/`
+
 - `.github/workflows/ios-ci.yml`
   - Build app cho `iOS Simulator`
   - Không cần signing

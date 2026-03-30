@@ -1,8 +1,0 @@
-status: success
-workflow: Build TrollStore IPA
-run_id: 23710819861
-run_url: https://github.com/hoaiokok123-arch/RPG-Maker-IOS/actions/runs/23710819861
-commit: 6e7bd1cfa0f5dce412b0c4081af711d98196fd51
-branch: main
-updated_at_utc: 2026-03-29T14:06:49Z
-artifact: RPGPlayerClone-trollstore-ipa

@@ -2,7 +2,7 @@ import Foundation
 import UIKit
 
 protocol MKXPZEngineBridging: AnyObject {
-    func makeViewController(gameDirectory: URL) -> UIViewController
+    func makeViewController(launchContext: NativeEngineLaunchContext) -> UIViewController
     func handleInput(_ event: VirtualGamepadEvent)
     func shutdown()
 }
@@ -91,6 +91,7 @@ final class MKXPZWrapper: UIViewController {
             1. Port mkxp-z sang iOS va dong goi thanh XCFramework.
             2. Expose Objective-C class `MKXPZBridge`.
             3. Implement selectors:
+               + createViewControllerWithLaunchContext:
                + createViewControllerWithGamePath:
                + sendInputWithButton:pressed:
                + shutdownEngine
@@ -98,8 +99,17 @@ final class MKXPZWrapper: UIViewController {
             return
         }
 
-        let child = bridge.makeViewController(gameDirectory: game.path)
-        embed(child)
+        do {
+            let launchContext = try NativeEngineLaunchContext(game: game, engineIdentifier: "mkxpz")
+            let child = bridge.makeViewController(launchContext: launchContext)
+            embed(child)
+        } catch {
+            showPlaceholder(text: """
+            Khong tao duoc runtime context cho MKXPZ.
+
+            \(error.localizedDescription)
+            """)
+        }
     }
 
     private func embed(_ child: UIViewController) {
