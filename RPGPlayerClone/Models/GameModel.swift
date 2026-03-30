@@ -6,6 +6,7 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
     var path: URL
     var coverImage: URL?
     var gameType: GameType
+    var engineOverride: GameEngineRuntime?
     var lastPlayed: Date?
 
     init(
@@ -14,6 +15,7 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         path: URL,
         coverImage: URL? = nil,
         gameType: GameType = .unknown,
+        engineOverride: GameEngineRuntime? = nil,
         lastPlayed: Date? = nil
     ) {
         self.id = id
@@ -21,14 +23,31 @@ struct Game: Identifiable, Codable, Hashable, Sendable {
         self.path = path
         self.coverImage = coverImage
         self.gameType = gameType
+        self.engineOverride = engineOverride
         self.lastPlayed = lastPlayed
     }
 
     var isPlayable: Bool {
-        gameType != .unknown
+        effectiveEngine != nil
     }
 
     var sandboxFriendlyPath: URL {
         path.standardizedFileURL
+    }
+
+    var effectiveEngine: GameEngineRuntime? {
+        if let engineOverride, engineOverride.supports(gameType) {
+            return engineOverride
+        }
+
+        return gameType.defaultEngineRuntime
+    }
+
+    var engineSummary: String {
+        if let engineOverride {
+            return "Manual: \(engineOverride.displayName)"
+        }
+
+        return "Auto: \(gameType.preferredEngineName)"
     }
 }

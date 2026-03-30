@@ -32,15 +32,32 @@ enum GameType: String, Codable, CaseIterable, Hashable, Sendable {
     }
 
     var preferredEngineName: String {
+        defaultEngineRuntime?.displayName ?? "Unknown"
+    }
+
+    var defaultEngineRuntime: GameEngineRuntime? {
         switch self {
         case .rpg2k, .rpg2k3:
-            return "EasyRPG Player"
+            return .easyRPG
         case .rpgXP, .rpgVX, .rpgVXAce:
-            return "mkxp-z"
+            return .mkxpz
         case .rpgMV, .rpgMZ:
-            return "WKWebView"
+            return .web
         case .unknown:
-            return "Unknown"
+            return nil
+        }
+    }
+
+    var compatibleEngines: [GameEngineRuntime] {
+        switch self {
+        case .rpg2k, .rpg2k3:
+            return [.easyRPG]
+        case .rpgXP, .rpgVX, .rpgVXAce:
+            return [.mkxpz]
+        case .rpgMV, .rpgMZ:
+            return [.web]
+        case .unknown:
+            return GameEngineRuntime.allCases
         }
     }
 

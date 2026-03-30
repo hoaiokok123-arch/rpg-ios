@@ -5,6 +5,8 @@ import Foundation
 final class GameLibraryViewModel: ObservableObject {
     @Published var games: [Game] = []
     @Published var statusMessage: String?
+    @Published var activityMessage: String?
+    @Published var isBusy = false
 
     private let store: GameLibraryStore
     private let importer: FileImporter
@@ -25,6 +27,7 @@ final class GameLibraryViewModel: ObservableObject {
         let loadedGames = store.loadGames().filter { fileManager.itemExists(at: $0.path) }
         games = sorted(loadedGames)
         persistGames()
+        rescanLibrary(showStatus: false)
     }
 
     func deleteGame() {
@@ -55,7 +58,8 @@ final class GameLibraryViewModel: ObservableObject {
             return
         }
 
-        statusMessage = "Dang import \(urls.count) muc..."
+        isBusy = true
+        activityMessage = "Dang import \(urls.count) muc..."
 
         let importer = self.importer
         let store = self.store
@@ -85,6 +89,8 @@ final class GameLibraryViewModel: ObservableObject {
 
             games = sorted(merged)
             persistGames()
+            isBusy = false
+            activityMessage = nil
 
             if !outcome.importedGames.isEmpty && outcome.failures.isEmpty {
                 statusMessage = "Da import \(outcome.importedGames.count) muc."
@@ -104,6 +110,67 @@ final class GameLibraryViewModel: ObservableObject {
         games[index].lastPlayed = Date()
         games = sorted(games)
         persistGames()
+    }
+
+    func rescanLibrary(showStatus: Bool = true) {
+        guard !isBusy else {
+            return
+        }
+
+        let existingGames = games
+        let store = self.store
+
+        isBusy = true
+        activityMessage = showStatus ? "Dang quet lai thu vien..." : nil
+
+        Task {
+            let rescannedGames = await Task.detached(priority: .userInitiated) {
+                store.rescanGames(preserving: existingGames)
+            }.value
+
+            games = sorted(rescannedGames)
+            persistGames()
+            isBusy = false
+            activityMessage = nil
+
+            guard showStatus else {
+                return
+            }
+
+            if rescannedGames.isEmpty {
+                statusMessage = "Chua tim thay game nao trong Documents/Games."
+            } else {
+                let playableCount = rescannedGames.filter(\.isPlayable).count
+                statusMessage = "Da quet \(rescannedGames.count) muc. Co \(playableCount) game co the khoi chay."
+            }
+        }
+    }
+
+    func updateEngineOverride(for game: Game, engineOverride: GameEngineRuntime?) {
+        guard let index = games.firstIndex(where: { $0.id == game.id }) else {
+            return
+        }
+
+        if let engineOverride, !engineOverride.supports(games[index].gameType) {
+            statusMessage = "Engine \(engineOverride.displayName) khong phu hop voi \(games[index].gameType.displayName)."
+            return
+        }
+
+        games[index].engineOverride = engineOverride
+        games = sorted(games)
+        persistGames()
+    }
+
+    func refreshGameMetadata(_ game: Game) {
+        guard let index = games.firstIndex(where: { $0.id == game.id }) else {
+            return
+        }
+
+        let refreshed = store.makeGame(from: games[index].path, preserving: games[index])
+        games[index] = refreshed
+        games = sorted(games)
+        persistGames()
+        statusMessage = "Da cap nhat metadata cho \(refreshed.name)."
     }
 
     private func persistGames() {

@@ -10,6 +10,7 @@ struct GameLibraryView: View {
     @State private var activeGame: Game?
     @State private var activeController: UIViewController?
     @State private var deleteCandidate: Game?
+    @State private var editingGame: Game?
 
     private let columns = [
         GridItem(.adaptive(minimum: 190), spacing: 16)
@@ -27,6 +28,7 @@ struct GameLibraryView: View {
                                 GameCardView(
                                     game: game,
                                     playAction: { launch(game) },
+                                    manageAction: { editingGame = game },
                                     deleteAction: { deleteCandidate = game }
                                 )
                             }
@@ -38,8 +40,16 @@ struct GameLibraryView: View {
             .navigationTitle("RPGPlayer Clone")
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    Button("Import") {
-                        showingImporter = true
+                    Menu {
+                        Button("Import") {
+                            showingImporter = true
+                        }
+
+                        Button("Rescan library") {
+                            viewModel.rescanLibrary()
+                        }
+                    } label: {
+                        Label("Actions", systemImage: "ellipsis.circle")
                     }
 
                     NavigationLink("Settings") {
@@ -48,7 +58,7 @@ struct GameLibraryView: View {
                 }
             }
             .refreshable {
-                viewModel.loadGames()
+                viewModel.rescanLibrary(showStatus: false)
             }
             .fileImporter(
                 isPresented: $showingImporter,
@@ -104,6 +114,24 @@ struct GameLibraryView: View {
             } message: {
                 Text(deleteCandidate?.name ?? "")
             }
+            .sheet(item: $editingGame) { game in
+                if let currentGame = resolvedGame(for: game) {
+                    GameManagementSheet(
+                        game: currentGame,
+                        saveEngineOverride: { engineOverride in
+                            viewModel.updateEngineOverride(for: currentGame, engineOverride: engineOverride)
+                        },
+                        refreshMetadata: {
+                            viewModel.refreshGameMetadata(currentGame)
+                        },
+                        deleteGame: {
+                            viewModel.deleteGame(currentGame)
+                        }
+                    )
+                } else {
+                    EmptyView()
+                }
+            }
         }
         .fullScreenCover(item: $activeGame, onDismiss: {
             activeController = nil
@@ -114,6 +142,19 @@ struct GameLibraryView: View {
                 controller: activeController
             ) {
                 activeGame = nil
+            }
+        }
+        .overlay {
+            if viewModel.isBusy, let activityMessage = viewModel.activityMessage {
+                ZStack {
+                    Color.black.opacity(0.22)
+                        .ignoresSafeArea()
+
+                    ProgressView(activityMessage)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
             }
         }
         .onAppear {
@@ -130,6 +171,10 @@ struct GameLibraryView: View {
             viewModel.importGameFromFiles(urls: urls)
             ExternalFileOpenCoordinator.shared.markAsConsumed(urls)
         }
+    }
+
+    private func resolvedGame(for game: Game) -> Game? {
+        viewModel.games.first(where: { $0.id == game.id })
     }
 
     private var emptyState: some View {
@@ -175,6 +220,7 @@ struct GameLibraryView: View {
 private struct GameCardView: View {
     let game: Game
     let playAction: () -> Void
+    let manageAction: () -> Void
     let deleteAction: () -> Void
 
     var body: some View {
@@ -191,6 +237,10 @@ private struct GameCardView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
+            Text(game.engineSummary)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
             Text(lastPlayedText)
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -199,8 +249,13 @@ private struct GameCardView: View {
                 Button("Play", action: playAction)
                     .buttonStyle(.borderedProminent)
 
-                Button("Delete", role: .destructive, action: deleteAction)
-                    .buttonStyle(.bordered)
+                Menu {
+                    Button("Manage", action: manageAction)
+                    Button("Delete", role: .destructive, action: deleteAction)
+                } label: {
+                    Label("More", systemImage: "ellipsis.circle")
+                }
+                .buttonStyle(.bordered)
             }
         }
         .padding(14)
@@ -215,6 +270,99 @@ private struct GameCardView: View {
         }
 
         return "Last played: \(date.formatted(date: .abbreviated, time: .shortened))"
+    }
+}
+
+private struct GameManagementSheet: View {
+    let game: Game
+    let saveEngineOverride: (GameEngineRuntime?) -> Void
+    let refreshMetadata: () -> Void
+    let deleteGame: () -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedEngineOverride: GameEngineRuntime?
+
+    init(
+        game: Game,
+        saveEngineOverride: @escaping (GameEngineRuntime?) -> Void,
+        refreshMetadata: @escaping () -> Void,
+        deleteGame: @escaping () -> Void
+    ) {
+        self.game = game
+        self.saveEngineOverride = saveEngineOverride
+        self.refreshMetadata = refreshMetadata
+        self.deleteGame = deleteGame
+        _selectedEngineOverride = State(initialValue: game.engineOverride)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Game") {
+                    LabeledContent("Name", game.name)
+                    LabeledContent("Detected type", game.gameType.displayName)
+                    LabeledContent("Current engine", game.effectiveEngine?.displayName ?? "Unknown")
+                    LabeledContent("Folder", game.path.lastPathComponent)
+                }
+
+                Section("Engine") {
+                    Picker("Runtime", selection: $selectedEngineOverride) {
+                        Text(autoEngineLabel).tag(nil as GameEngineRuntime?)
+                        ForEach(runtimeOptions) { runtime in
+                            Text(runtime.displayName).tag(runtime as GameEngineRuntime?)
+                        }
+                    }
+
+                    Text(engineHelpText)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Section("Actions") {
+                    Button("Re-detect metadata") {
+                        refreshMetadata()
+                        dismiss()
+                    }
+
+                    Button("Delete game", role: .destructive) {
+                        deleteGame()
+                        dismiss()
+                    }
+                }
+            }
+            .navigationTitle("Manage Game")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Close") {
+                        dismiss()
+                    }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        saveEngineOverride(selectedEngineOverride)
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private var runtimeOptions: [GameEngineRuntime] {
+        game.gameType.compatibleEngines
+    }
+
+    private var autoEngineLabel: String {
+        "Auto (\(game.gameType.preferredEngineName))"
+    }
+
+    private var engineHelpText: String {
+        if game.gameType == .unknown {
+            return "Game chua duoc detect ro loai. Ban co the thu ep runtime de test."
+        }
+
+        return "Auto se dung runtime mac dinh cho \(game.gameType.displayName)."
     }
 }
 

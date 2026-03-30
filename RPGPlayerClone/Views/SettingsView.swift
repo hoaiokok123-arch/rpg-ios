@@ -63,10 +63,16 @@ struct SettingsView: View {
                 }
             }
 
-            let cacheRoot = FileManager.cachesDirectory.appendingPathComponent("RPGPlayerClone", isDirectory: true)
-            try? FileManager.default.removeItem(at: cacheRoot)
+            let cacheRoots = [
+                FileManager.cachesDirectory.appendingPathComponent("RPGPlayerClone", isDirectory: true),
+                FileManager.cachesDirectory.appendingPathComponent("NativeEngines", isDirectory: true)
+            ]
+
+            for cacheRoot in cacheRoots where FileManager.default.itemExists(at: cacheRoot) {
+                try? FileManager.default.removeItem(at: cacheRoot)
+            }
+
             cacheStatus = "Da xoa cache web va file tam."
         }
     }
 }
-

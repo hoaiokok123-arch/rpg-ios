@@ -16,14 +16,14 @@ final class GameEngineManager {
         shutdownCurrentEngine()
 
         let controller: UIViewController?
-        switch game.gameType {
-        case .rpg2k, .rpg2k3:
+        switch game.effectiveEngine {
+        case .easyRPG:
             controller = EasyRPGWrapper(game: game)
-        case .rpgXP, .rpgVX, .rpgVXAce:
+        case .mkxpz:
             controller = MKXPZWrapper(game: game)
-        case .rpgMV, .rpgMZ:
+        case .web:
             controller = WebGameViewController(game: game)
-        case .unknown:
+        case .none:
             controller = nil
         }
 
